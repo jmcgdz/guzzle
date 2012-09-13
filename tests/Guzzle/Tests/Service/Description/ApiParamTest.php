@@ -10,21 +10,16 @@ use Guzzle\Service\Description\ApiParam;
 class ApiParamTest extends \Guzzle\Tests\GuzzleTestCase
 {
     protected $data = array(
-        'name'         => 'foo',
-        'type'         => 'bar',
-        'type_args'    => null,
-        'required'     => true,
-        'default'      => '123',
-        'doc'          => '456',
-        'min_length'   => 2,
-        'max_length'   => 5,
-        'location'     => 'body',
-        'location_key' => 'foo',
-        'static'       => 'static!',
-        'prepend'      => 'before.',
-        'append'       => '.after',
-        'filters'      => array('trim', 'json_encode'),
-        'structure'    => array()
+        'name'            => 'foo',
+        'type'            => 'bar',
+        'required'        => true,
+        'default'         => '123',
+        'description'     => '456',
+        'min'             => 2,
+        'max'             => 5,
+        'location'        => 'body',
+        'static'          => 'static!',
+        'filters'         => array('trim', 'json_encode')
     );
 
     public function testCreatesParamFromArray()
@@ -34,13 +29,11 @@ class ApiParamTest extends \Guzzle\Tests\GuzzleTestCase
         $this->assertEquals('bar', $p->getType());
         $this->assertEquals(true, $p->getRequired());
         $this->assertEquals('123', $p->getDefault());
-        $this->assertEquals('456', $p->getDoc());
-        $this->assertEquals(2, $p->getMinLength());
-        $this->assertEquals(5, $p->getMaxLength());
+        $this->assertEquals('456', $p->getDescription());
+        $this->assertEquals(2, $p->getMin());
+        $this->assertEquals(5, $p->getMax());
         $this->assertEquals('body', $p->getLocation());
         $this->assertEquals('static!', $p->getStatic());
-        $this->assertEquals('before.', $p->getPrepend());
-        $this->assertEquals('.after', $p->getAppend());
         $this->assertEquals(array('trim', 'json_encode'), $p->getFilters());
     }
 
@@ -92,109 +85,79 @@ class ApiParamTest extends \Guzzle\Tests\GuzzleTestCase
         $this->assertEquals(array(), $p->getFilters());
     }
 
-    public function testParsesLocationValue()
+    public function testAllowsSimpleLocationValueAndDefaultLocationKey()
     {
-        $p = new ApiParam(array(
-            'location' => 'foo:bar'
-        ));
+        $p = new ApiParam(array('name' => 'myname', 'location' => 'foo'));
         $this->assertEquals('foo', $p->getLocation());
-        $this->assertEquals('bar', $p->getLocationKey());
+        $p->setLocationArgs(array('test' => 123));
+        $this->assertEquals(array('test' => 123), $p->getLocationArgs());
     }
 
     public function testParsesTypeValues()
     {
-        $p = new ApiParam(array(
-            'type' => 'foo:baz,bar,boo'
-        ));
+        $p = new ApiParam(array('type' => 'foo'));
         $this->assertEquals('foo', $p->getType());
-        $this->assertEquals(array('baz,bar,boo'), $p->getTypeArgs());
     }
 
-    public function testAllowsExplicitTypeArgs()
+    /**
+     * @expectedException InvalidArgumentException
+     * @expectedExceptionMessage A [method] value must be specified for each complex filter
+     */
+    public function testValidatesComplexFilters()
     {
-        $p = new ApiParam(array(
-            'type'      => 'foo',
-            'type_args' => array('baz', 'bar', 'boo')
-        ));
-        $this->assertEquals('foo', $p->getType());
-        $this->assertEquals(array('baz', 'bar', 'boo'), $p->getTypeArgs());
-
-        $p = new ApiParam(array(
-            'type'      => 'foo',
-            'type_args' => 'baz'
-        ));
-        $this->assertEquals('foo', $p->getType());
-        $this->assertEquals(array('baz'), $p->getTypeArgs());
-    }
-
-    public function testAllowsDotNotationForFiltersClasses()
-    {
-        $p = new ApiParam(array(
-            'filters' => array('Mesa\JarJar::binks', 'Yousa\NoJarJar::binks', 'Foo\Baz::bar')
-        ));
-        $this->assertEquals(array(
-            'Mesa\JarJar::binks',
-            'Yousa\NoJarJar::binks',
-            'Foo\\Baz::bar'
-        ), $p->getFilters());
+        $p = new ApiParam(array('filters' => array(array('args' => 'foo'))));
     }
 
     public function testCanBuildUpParams()
     {
         $p = new ApiParam(array());
         $p->setName('foo')
-            ->setAppend('a')
             ->setDefault('b')
-            ->setDoc('c')
+            ->setDescription('c')
             ->setFilters(array('d'))
             ->setLocation('e')
             ->setLocationKey('f')
-            ->setMaxLength(2)
-            ->setMinLength(1)
-            ->setPrepend('g')
+            ->setMax(2)
+            ->setMin(1)
             ->setRequired(true)
             ->setStatic('h')
-            ->setType('i')
-            ->setTypeArgs(array('j'));
+            ->setType('i');
 
         $p->addFilter('foo');
 
         $this->assertEquals('foo', $p->getName());
-        $this->assertEquals('a', $p->getAppend());
         $this->assertEquals('b', $p->getDefault());
-        $this->assertEquals('c', $p->getDoc());
+        $this->assertEquals('c', $p->getDescription());
         $this->assertEquals(array('d', 'foo'), $p->getFilters());
         $this->assertEquals('e', $p->getLocation());
         $this->assertEquals('f', $p->getLocationKey());
-        $this->assertEquals(2, $p->getMaxLength());
-        $this->assertEquals(1, $p->getMinLength());
-        $this->assertEquals('g', $p->getPrepend());
+        $this->assertEquals(2, $p->getMax());
+        $this->assertEquals(1, $p->getMin());
         $this->assertEquals(true, $p->getRequired());
         $this->assertEquals('h', $p->getStatic());
         $this->assertEquals('i', $p->getType());
-        $this->assertEquals(array('j'), $p->getTypeArgs());
     }
 
-    public function testAllowsNestedStructures()
+    public function testAllowsNestedShape()
     {
         $command = $this->getServiceBuilder()->get('mock')->getCommand('mock_command')->getApiCommand();
         $param = new ApiParam(array(
-            'parent'    => $command,
-            'name'      => 'foo',
-            'type'      => 'array',
-            'location'  => 'query',
-            'structure' => array(
+            'parent'     => $command,
+            'name'       => 'foo',
+            'type'       => 'object',
+            'location'   => 'query',
+            'properties' => array(
                 'foo' => array(
-                    'type'      => 'array',
+                    'type'      => 'object',
                     'required'  => true,
-                    'structure' => array(
+                    'properties' => array(
                         'baz' => array(
                             'name' => 'baz',
                             'type' => 'bool',
                         )
                     )
                 ),
-                array(
+                'bar' => array(
                     'name'    => 'bar',
                     'default' => '123'
                 )
@@ -202,38 +165,30 @@ class ApiParamTest extends \Guzzle\Tests\GuzzleTestCase
         ));
 
         $this->assertSame($command, $param->getParent());
-        $this->assertNotEmpty($param->getStructure());
-        $this->assertInstanceOf('Guzzle\Service\Description\ApiParam', $param->getStructure('foo'));
-        $this->assertSame($param, $param->getStructure('foo')->getParent());
-        $this->assertSame($param->getStructure('foo'), $param->getStructure('foo')->getStructure('baz')->getParent());
-        $this->assertInstanceOf('Guzzle\Service\Description\ApiParam', $param->getStructure('bar'));
-        $this->assertSame($param, $param->getStructure('bar')->getParent());
+        $this->assertNotEmpty($param->getProperties());
+        $this->assertInstanceOf('Guzzle\Service\Description\ApiParam', $param->getProperty('foo'));
+        $this->assertSame($param, $param->getProperty('foo')->getParent());
+        $this->assertSame($param->getProperty('foo'), $param->getProperty('foo')->getProperty('baz')->getParent());
+        $this->assertInstanceOf('Guzzle\Service\Description\ApiParam', $param->getProperty('bar'));
+        $this->assertSame($param, $param->getProperty('bar')->getParent());
 
         $array = $param->toArray();
-        $this->assertInternalType('array', $array['structure']);
-        $this->assertArrayHasKey('foo', $array['structure']);
-        $this->assertArrayHasKey('bar', $array['structure']);
+        $this->assertInternalType('array', $array['properties']);
+        $this->assertArrayHasKey('foo', $array['properties']);
+        $this->assertArrayHasKey('bar', $array['properties']);
     }
 
     public function testAllowsComplexFilters()
     {
         $that = $this;
-        $method = function ($a, $b, $c) use ($that) {
+        $param = new ApiParam(array());
+        $param->setFilters(array(array('method' => function ($a, $b, $c, $d) use ($that, $param) {
             $that->assertEquals('test', $a);
             $that->assertEquals('my_value!', $b);
             $that->assertEquals('bar', $c);
+            $that->assertSame($param, $d);
             return 'abc' . $b;
-        };
-
-        $param = new ApiParam(array(
-            'filters' => array(
-                array(
-                    'method' => $method,
-                    'args'   => array('test', '@value', 'bar')
-                )
-            ),
-        ));
-
+        }, 'args' => array('test', '@value', 'bar', '@api'))));
         $this->assertEquals('abcmy_value!', $param->filter('my_value!'));
     }
 
@@ -249,16 +204,85 @@ class ApiParamTest extends \Guzzle\Tests\GuzzleTestCase
     {
         $param1 = new ApiParam(array('name' => 'parent'));
         $param2 = new ApiParam(array('name' => 'child'));
-        $param1->addStructure($param2);
+        $param1->addProperty($param2);
         $this->assertSame($param1, $param2->getParent());
-        $this->assertSame($param2, $param1->getStructure('child'));
+        $this->assertSame($param2, $param1->getProperty('child'));
 
         // Remove a single child from the structure
-        $param1->removeStructure('child');
-        $this->assertNull($param1->getStructure('child'));
+        $param1->removeProperty('child');
+        $this->assertNull($param1->getProperty('child'));
         // Remove the entire structure
-        $param1->addStructure($param2);
-        $param1->removeStructure();
-        $this->assertNull($param1->getStructure('child'));
+        $param1->addProperty($param2);
+        $param1->removeProperty('child');
+        $this->assertNull($param1->getProperty('child'));
+    }
+
+    public function testProcessesValue()
+    {
+        $p = new ApiParam(array(
+            'name'     => 'test',
+            'type'     => 'string',
+            'required' => true
+        ));
+        $v = null;
+        $this->assertEquals(array('[test] is required'), $p->process($v));
+    }
+
+    public function testAddsAdditionalProperties()
+    {
+        $p = new ApiParam(array(
+            'type' => 'object',
+            'additional_properties' => array('type' => 'string')
+        ));
+        $this->assertInstanceOf('Guzzle\Service\Description\ApiParam', $p->getAdditionalProperties());
+        $this->assertNull($p->getAdditionalProperties()->getAdditionalProperties());
+        $p = new ApiParam(array('type' => 'object'));
+        $this->assertTrue($p->getAdditionalProperties());
+    }
+
+    public function testAddsItems()
+    {
+        $p = new ApiParam(array(
+            'type'  => 'array',
+            'items' => array('type' => 'string')
+        ));
+        $this->assertInstanceOf('Guzzle\Service\Description\ApiParam', $p->getItems());
+        $out = $p->toArray();
+        $this->assertEquals('array', $out['type']);
+        $this->assertInternalType('array', $out['items']);
+    }
+
+    public function testHasExtraProperties()
+    {
+        $p = new ApiParam();
+        $this->assertEquals(array(), $p->getExtra());
+        $p->setExtra(array('foo' => 'bar'));
+        $this->assertEquals('bar', $p->getExtra('foo'));
+        $p->setExtra('baz', 'boo');
+        $this->assertEquals(array('foo' => 'bar', 'baz' => 'boo'), $p->getExtra());
+    }
+
+    public function testHasInstanceOf()
+    {
+        $p = new ApiParam();
+        $this->assertNull($p->getInstanceOf());
+        $p->setInstanceOf('Foo');
+        $this->assertEquals('Foo', $p->getInstanceOf());
+    }
+
+    public function testHasPattern()
+    {
+        $p = new ApiParam();
+        $this->assertNull($p->getPattern());
+        $p->setPattern('/[0-9]+/');
+        $this->assertEquals('/[0-9]+/', $p->getPattern());
+    }
+
+    public function testHasEnum()
+    {
+        $p = new ApiParam();
+        $this->assertNull($p->getEnum());
+        $p->setEnum(array('foo', 'bar'));
+        $this->assertEquals(array('foo', 'bar'), $p->getEnum());
     }
 }

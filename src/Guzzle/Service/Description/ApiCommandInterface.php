@@ -4,7 +4,6 @@ namespace Guzzle\Service\Description;
 
 use Guzzle\Common\Collection;
 use Guzzle\Service\Exception\ValidationException;
-use Guzzle\Service\Inspector;
 
 /**
  * Interface defining data objects that hold the information of an API command
@@ -76,14 +75,14 @@ interface ApiCommandInterface
      *
      * @return string|null
      */
-    public function getDoc();
+    public function getDescription();
 
     /**
      * Get the documentation URL of the command
      *
      * @return string|null
      */
-    public function getDocUrl();
+    public function getDescriptionUrl();
 
     /**
      * Get the type of data stored in the result of the command
@@ -97,7 +96,7 @@ interface ApiCommandInterface
      *
      * @return string|null
      */
-    public function getResultDoc();
+    public function getResultDescription();
 
     /**
      * Get whether or not the command is deprecated
@@ -118,10 +117,9 @@ interface ApiCommandInterface
      * InvalidArgumentException with a helpful error message. Adds default args to the passed config object if the
      * parameter was not set in the config object.
      *
-     * @param Collection $config    Configuration settings
-     * @param Inspector  $inspector Inspector to use with the validation
+     * @param Collection $config Configuration settings
      *
      * @throws ValidationException when validation errors occur
      */
-    public function validate(Collection $config, Inspector $inspector = null);
+    public function validate(Collection $config);
 }

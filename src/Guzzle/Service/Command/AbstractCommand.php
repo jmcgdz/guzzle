@@ -10,7 +10,6 @@ use Guzzle\Http\Curl\CurlHandle;
 use Guzzle\Service\Description\ApiCommand;
 use Guzzle\Service\Description\ApiCommandInterface;
 use Guzzle\Service\ClientInterface;
-use Guzzle\Service\Inspector;
 use Guzzle\Service\Exception\CommandException;
 use Guzzle\Service\Exception\JsonException;
 
@@ -47,11 +46,6 @@ abstract class AbstractCommand extends Collection implements CommandInterface
     protected $onComplete;
 
     /**
-     * @var Inspector
-     */
-    protected $inspector;
-
-    /**
      * Constructor
      *
      * @param array|Collection    $parameters Collection of parameters to set on the command
@@ -63,7 +57,7 @@ abstract class AbstractCommand extends Collection implements CommandInterface
         if ($apiCommand) {
             $this->apiCommand = $apiCommand;
         } else {
-            $apiCommand = static::getApi();
+            $apiCommand = static::getApi() ?: array();
             $this->apiCommand = $apiCommand instanceof ApiCommand ? $apiCommand : new ApiCommand($apiCommand);
         }
         $this->initConfig();
@@ -293,7 +287,7 @@ abstract class AbstractCommand extends Collection implements CommandInterface
             }
 
             // Fail on missing required arguments, and change parameters via filters
-            $this->apiCommand->validate($this, $this->getInspector());
+            $this->apiCommand->validate($this);
             $this->build();
 
             // Add custom request headers set on the command
@@ -318,34 +312,6 @@ abstract class AbstractCommand extends Collection implements CommandInterface
     public function getRequestHeaders()
     {
         return $this->get(self::HEADERS_OPTION);
-    }
-
-    /**
-     * Set the Inspector to use with the command
-     *
-     * @param Inspector $inspector Inspector to use for config validation
-     *
-     * @return AbstractCommand
-     */
-    public function setInspector(Inspector $inspector)
-    {
-        $this->inspector = $inspector;
-
-        return $this;
-    }
-
-    /**
-     * Get the Inspector used with the Command
-     *
-     * @return Inspector
-     */
-    protected function getInspector()
-    {
-        if (!$this->inspector) {
-            $this->inspector = Inspector::getInstance();
-        }
-
-        return $this->inspector;
     }
 
     /**

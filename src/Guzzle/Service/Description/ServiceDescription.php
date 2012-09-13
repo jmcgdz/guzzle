@@ -55,10 +55,12 @@ class ServiceDescription implements ServiceDescriptionInterface
      */
     public function serialize()
     {
-        return json_encode(array_map(function($command) {
-            // Convert ApiCommands into arrays
-            return $command->toArray();
-        }, $this->commands));
+        $commands = array();
+        foreach ($this->commands as $name => $command) {
+            $commands[$name] = $command->toArray();
+        }
+
+        return json_encode($commands);
     }
 
     /**
@@ -68,14 +70,16 @@ class ServiceDescription implements ServiceDescriptionInterface
      */
     public function unserialize($json)
     {
-        $this->commands = array_map(function($data) {
-            // Convert params to ApiParam objects
-            $data['params'] = array_map(function($param) {
-                return new ApiParam($param);
-            }, $data['params']);
-            // Convert commands into ApiCommands
-            return new ApiCommand($data);
-        }, json_decode($json, true));
+        foreach (json_decode($json, true) as $name => $command) {
+            $temp = isset($command['params']) ? $command['params'] : array();
+            unset($command['params']);
+            $command['name'] = $name;
+            $this->commands[$name] = new ApiCommand($command);
+            foreach ($temp as $paramName => $param) {
+                $param['name'] = $paramName;
+                $this->commands[$name]->addParam(new ApiParam($param));
+            }
+        }
     }
 
     /**

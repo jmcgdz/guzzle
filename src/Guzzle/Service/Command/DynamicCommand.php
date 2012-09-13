@@ -77,9 +77,8 @@ class DynamicCommand extends AbstractCommand
             // Get the path values and use the client config settings
             $variables = $this->client->getConfig()->getAll();
             foreach ($this->apiCommand->getParams() as $name => $arg) {
-                $configValue = $this->get($name);
-                if (is_scalar($configValue)) {
-                    $variables[$name] = $arg->getPrepend() . $configValue . $arg->getAppend();
+                if ($arg->getLocation() == 'uri') {
+                    $variables[$name] = (string) $this->get($name);
                 }
             }
             // Merge the client's base URL with an expanded URI template
@@ -96,16 +95,10 @@ class DynamicCommand extends AbstractCommand
             // Visit with the associated visitor
             if (isset($this->visitors[$location])) {
                 // Ensure that a value has been set for this parameter
-                $configValue = $this->get($name);
-                if ($configValue !== null) {
-                    // Create the value based on prepend and append settings
-                    if ($arg->getPrepend() || $arg->getAppend()) {
-                        $value = $arg->getPrepend() . $configValue . $arg->getAppend();
-                    } else {
-                        $value = $configValue;
-                    }
+                $value = $this->get($name);
+                if ($value !== null) {
                     // Apply the parameter value with the location visitor
-                    $this->visitors[$location]->visit($this, $this->request, $arg->getLocationKey(), $value, $arg);
+                    $this->visitors[$location]->visit($arg, $this->request, $value);
                 }
             }
         }

@@ -22,11 +22,9 @@ interface LocationVisitorInterface
     /**
      * Called once for each parameter being visited that matches the location type
      *
-     * @param CommandInterface $command Command being prepared
-     * @param RequestInterface $request Request being prepared
-     * @param string           $key     Location key
-     * @param string           $value   Value to set
      * @param ApiParam         $param   Parameter being visited
+     * @param RequestInterface $request Request being prepared
+     * @param string           $value   Value to set
      */
-    public function visit(CommandInterface $command, RequestInterface $request, $key, $value, ApiParam $param = null);
+    public function visit(ApiParam $param, RequestInterface $request, $value);
 }

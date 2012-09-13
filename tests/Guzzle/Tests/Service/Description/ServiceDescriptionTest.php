@@ -14,16 +14,13 @@ class ServiceDescriptionTest extends \Guzzle\Tests\GuzzleTestCase
     {
         $this->serviceData = array(
             'test_command' => new ApiCommand(array(
-                'doc' => 'documentationForCommand',
-                'method' => 'DELETE',
-                'class' => 'Guzzle\\Tests\\Service\\Mock\\Command\\MockCommand',
-                'params' => array(
-                    'bucket' => array(
-                        'required' => true
-                    ),
-                    'key' => array(
-                        'required' => true
-                    )
+                'name'        => 'test_command',
+                'description' => 'documentationForCommand',
+                'method'      => 'DELETE',
+                'class'       => 'Guzzle\\Tests\\Service\\Mock\\Command\\MockCommand',
+                'params'      => array(
+                    'bucket'  => array('required' => true),
+                    'key'     => array('required' => true)
                 )
             ))
         );
@@ -63,7 +60,7 @@ class ServiceDescriptionTest extends \Guzzle\Tests\GuzzleTestCase
         $service = new ServiceDescription($this->serviceData);
         $data = serialize($service);
         $d2 = unserialize($data);
-        $this->assertEquals($service, $d2);
+        $this->assertEquals(serialize($service), serialize($d2));
     }
 
     public function testAllowsForJsonBasedArrayParamsFunctionalTest()
@@ -74,7 +71,7 @@ class ServiceDescriptionTest extends \Guzzle\Tests\GuzzleTestCase
                 'params' => array(
                     'data'   => array(
                         'required' => true,
-                        'type'     => 'type:array',
+                        'type'     => 'array',
                         'filters'  => 'json_encode',
                         'location' => 'body'
                     )

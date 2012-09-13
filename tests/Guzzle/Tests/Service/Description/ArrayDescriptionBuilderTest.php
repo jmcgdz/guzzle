@@ -2,7 +2,6 @@
 
 namespace Guzzle\Tests\Service\Description;
 
-use Guzzle\Service\Inspector;
 use Guzzle\Service\Description\ServiceDescription;
 use Guzzle\Service\Description\ArrayDescriptionBuilder;
 
@@ -23,7 +22,7 @@ class ArrayDescriptionBuilderTest extends \Guzzle\Tests\GuzzleTestCase
                     'method' => 'GET',
                     'params' => array(
                         'test' => array(
-                            'type' => 'string',
+                            'type'     => 'string',
                             'required' => true
                         )
                     )
@@ -63,34 +62,6 @@ class ArrayDescriptionBuilderTest extends \Guzzle\Tests\GuzzleTestCase
         ));
     }
 
-    public function testRegistersCustomTypes()
-    {
-        ServiceDescription::factory(array(
-            'types' => array(
-                'foo' => array(
-                    'class' => 'Guzzle\\Validation\\Regex',
-                    'pattern' => '/[0-9]+/'
-                )
-            )
-        ));
-
-        $valid = Inspector::getInstance()->validateConstraint('foo', 'abc');
-        $this->assertEquals('abc does not match the regular expression', $valid);
-    }
-
-    /**
-     * @expectedException RuntimeException
-     * @expectedExceptionMessage Custom types require a class attribute
-     */
-    public function testCustomTypesRequireClassAttribute()
-    {
-        ServiceDescription::factory(array(
-            'types' => array(
-                'slug' => array()
-            )
-        ));
-    }
-
     public function testAllowsMultipleInheritance()
     {
         $description = ServiceDescription::factory(array(
@@ -114,9 +85,9 @@ class ArrayDescriptionBuilderTest extends \Guzzle\Tests\GuzzleTestCase
                 'c' => array(
                     'params' => array(
                         'a1' => array(
-                            'default'  => 'bar',
-                            'required' => true,
-                            'doc'      => 'test'
+                            'default'     => 'bar',
+                            'required'    => true,
+                            'description' => 'test'
                         ),
                         'c3' => array()
                     )
@@ -140,7 +111,6 @@ class ArrayDescriptionBuilderTest extends \Guzzle\Tests\GuzzleTestCase
 
         $this->assertTrue($command->getParam('a1')->getRequired());
         $this->assertEquals('bar', $command->getParam('a1')->getDefault());
-        $this->assertEquals('test', $command->getParam('a1')->getDoc());
-        $this->assertNull($command->getParam('a1')->getPrepend());
+        $this->assertEquals('test', $command->getParam('a1')->getDescription());
     }
 }

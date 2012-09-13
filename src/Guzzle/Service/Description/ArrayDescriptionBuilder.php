@@ -15,21 +15,6 @@ class ArrayDescriptionBuilder implements DescriptionBuilderInterface
      */
     public function build($config, array $options = null)
     {
-        if (!empty($config['types'])) {
-            foreach ($config['types'] as $name => $type) {
-                $default = array();
-                if (!isset($type['class'])) {
-                    throw new DescriptionBuilderException('Custom types require a class attribute');
-                }
-                foreach ($type as $key => $value) {
-                    if ($key != 'name' && $key != 'class') {
-                        $default[$key] = $value;
-                    }
-                }
-                Inspector::getInstance()->registerConstraint($name, $type['class'], $default);
-            }
-        }
-
         $commands = array();
         if (!empty($config['commands'])) {
             foreach ($config['commands'] as $name => $command) {

@@ -17,8 +17,10 @@ class JsonBodyVisitorTest extends AbstractVisitorTestCase
         $visitor = new Visitor();
         // Test after when no body query values were found
         $visitor->after($this->command, $this->request);
-        $visitor->visit($this->command, $this->request, 'test', '123');
-        $visitor->visit($this->command, $this->request, 'test2', 'abc');
+
+        $param = $this->getNestedCommand('json')->getParam('foo');
+        $visitor->visit($param->setLocationKey('test'), $this->request, '123');
+        $visitor->visit($param->setLocationKey('test2'), $this->request, 'abc');
         $visitor->after($this->command, $this->request);
         $this->assertEquals('{"test":"123","test2":"abc"}', (string) $this->request->getBody());
     }
@@ -27,7 +29,8 @@ class JsonBodyVisitorTest extends AbstractVisitorTestCase
     {
         $visitor = new Visitor();
         $visitor->setContentTypeHeader('application/json-foo');
-        $visitor->visit($this->command, $this->request, 'test', '123');
+        $param = $this->getNestedCommand('json')->getParam('foo');
+        $visitor->visit($param->setLocationKey('test'), $this->request, '123');
         $visitor->after($this->command, $this->request);
         $this->assertEquals('application/json-foo', (string) $this->request->getHeader('Content-Type'));
     }
@@ -39,10 +42,11 @@ class JsonBodyVisitorTest extends AbstractVisitorTestCase
     public function testRecursivelyBuildsJsonBodies()
     {
         $command = $this->getNestedCommand('json');
-        $data = new Collection(array());
+        $data = new Collection();
         $command->validate($data);
         $visitor = new Visitor();
-        $visitor->visit($this->command, $this->request, 'Foo', $data['foo'], $command->getParam('foo'));
+        $param = $this->getNestedCommand('json')->getParam('foo');
+        $visitor->visit($param->setLocationKey('Foo'), $this->request, $data['foo']);
         $visitor->after($this->command, $this->request);
         $this->assertEquals('{"Foo":{"test":{"baz":true,"Jenga_Yall!":"HELLO"},"bar":123}}', (string) $this->request->getBody());
     }

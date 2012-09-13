@@ -21,7 +21,7 @@ abstract class AbstractVisitor implements LocationVisitorInterface
      * {@inheritdoc}
      * @codeCoverageIgnore
      */
-    public function visit(CommandInterface $command, RequestInterface $request, $key, $value, ApiParam $param = null) {}
+    public function visit(ApiParam $param, RequestInterface $request, $value) {}
 
     /**
      * Map nested parameters into the location_key based parameters
@@ -34,8 +34,8 @@ abstract class AbstractVisitor implements LocationVisitorInterface
     protected function resolveRecursively(array $value, ApiParam $param)
     {
         foreach ($value as $name => $v) {
-            if ($subParam = $param->getStructure($name)) {
-                $key = $subParam->getLocationKey();
+            if ($subParam = $param->getProperty($name)) {
+                $key = $subParam->getLocationKey() ?: $name;
                 if (is_array($v)) {
                     $value[$key] = $this->resolveRecursively($v, $subParam);
                 } elseif ($name != $key) {

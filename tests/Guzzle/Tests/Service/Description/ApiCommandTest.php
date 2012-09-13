@@ -3,7 +3,6 @@
 namespace Guzzle\Tests\Service\Description;
 
 use Guzzle\Common\Collection;
-use Guzzle\Service\Inspector;
 use Guzzle\Service\Description\ApiCommand;
 use Guzzle\Service\Description\ApiParam;
 use Guzzle\Service\Exception\ValidationException;
@@ -21,19 +20,19 @@ class ApiCommandTest extends \Guzzle\Tests\GuzzleTestCase
     public function testApiCommandIsDataObject()
     {
         $c = new ApiCommand(array(
-            'name'    => 'test',
-            'doc'     => 'doc',
-            'doc_url' => 'http://www.example.com',
-            'method'  => 'POST',
-            'uri'     => '/api/v1',
-            'result_type' => 'array',
-            'result_doc'  => 'returns the json_decoded response',
-            'deprecated'  => true,
-            'params' => array(
+            'name'               => 'test',
+            'description'        => 'doc',
+            'description_url'    => 'http://www.example.com',
+            'method'             => 'POST',
+            'uri'                => '/api/v1',
+            'result_type'        => 'array',
+            'result_description' => 'returns the json_decoded response',
+            'deprecated'         => true,
+            'params'             => array(
                 'key' => array(
-                    'required'   => true,
-                    'type'       => 'string',
-                    'max_length' => 10
+                    'required' => true,
+                    'type'     => 'string',
+                    'max'      => 10
                 ),
                 'key_2' => array(
                     'required' => true,
@@ -44,26 +43,26 @@ class ApiCommandTest extends \Guzzle\Tests\GuzzleTestCase
         ));
 
         $this->assertEquals('test', $c->getName());
-        $this->assertEquals('doc', $c->getDoc());
-        $this->assertEquals('http://www.example.com', $c->getDocUrl());
+        $this->assertEquals('doc', $c->getDescription());
+        $this->assertEquals('http://www.example.com', $c->getDescriptionUrl());
         $this->assertEquals('POST', $c->getMethod());
         $this->assertEquals('/api/v1', $c->getUri());
         $this->assertEquals('array', $c->getResultType());
-        $this->assertEquals('returns the json_decoded response', $c->getResultDoc());
+        $this->assertEquals('returns the json_decoded response', $c->getResultDescription());
         $this->assertTrue($c->isDeprecated());
         $this->assertEquals('Guzzle\\Service\\Command\\DynamicCommand', $c->getConcreteClass());
         $this->assertEquals(array(
             'key' => new ApiParam(array(
-                'name' => 'key',
+                'name'     => 'key',
                 'required' => true,
-                'type' => 'string',
-                'max_length' => 10
+                'type'     => 'string',
+                'max'      => 10
             )),
             'key_2' => new ApiParam(array(
-                'name' => 'key_2',
+                'name'     => 'key_2',
                 'required' => true,
-                'type' => 'integer',
-                'default' => 10
+                'type'     => 'integer',
+                'default'  => 10
             ))
         ), $c->getParams());
 
@@ -94,20 +93,15 @@ class ApiCommandTest extends \Guzzle\Tests\GuzzleTestCase
     public function testConvertsToArray()
     {
         $data = array(
-            'name'      => 'test',
-            'class'     => 'Guzzle\\Service\\Command\ClosureCommand',
-            'doc'       => 'test',
-            'doc_url'   => 'http://www.example.com',
-            'method'    => 'PUT',
-            'uri'       => '/',
-            'params'    => array(
-                'p' => array(
-                    'name' => 'foo'
-                )
-            ),
-            'result_type' => null,
-            'result_doc'  => null,
-            'deprecated'  => false
+            'name'            => 'test',
+            'class'           => 'Guzzle\\Service\\Command\ClosureCommand',
+            'description'     => 'test',
+            'description_url' => 'http://www.example.com',
+            'method'          => 'PUT',
+            'uri'             => '/',
+            'params'          => array(
+                'p' => array('name' => 'foo')
+            )
         );
         $c = new ApiCommand($data);
         $toArray = $c->toArray();
@@ -130,7 +124,6 @@ class ApiCommandTest extends \Guzzle\Tests\GuzzleTestCase
 
         $this->getApiCommand()->validate($col);
         $this->assertEquals(false, $col->get('bool_2'));
-        $this->assertEquals('user_test_', $col->get('dynamic'));
         $this->assertEquals(1.23, $col->get('float'));
     }
 
@@ -174,12 +167,12 @@ class ApiCommandTest extends \Guzzle\Tests\GuzzleTestCase
                 'min' => new ApiParam(array(
                     'name' => 'min',
                     'type' => 'string',
-                    'min_length' => 2
+                    'min'  => 2
                 )),
                 'max' => new ApiParam(array(
                     'name' => 'max',
                     'type' => 'string',
-                    'max_length' => 2
+                    'max'  => 2
                 ))
             )
         ));
@@ -189,9 +182,9 @@ class ApiCommandTest extends \Guzzle\Tests\GuzzleTestCase
             $this->fail('Did not throw expected exception');
         } catch (ValidationException $e) {
             $concat = implode("\n", $e->getErrors());
-            $this->assertContains("Value must be of type string", $concat);
-            $this->assertContains("[min] Length must be >= 2", $concat);
-            $this->assertContains("[max] Length must be <= 2", $concat);
+            $this->assertContains("[data] must be of type string", $concat);
+            $this->assertContains("[min] length must be greater than or equal to 2", $concat);
+            $this->assertContains("[max] length must be greater than or equal to 2", $concat);
         }
     }
 
@@ -207,38 +200,9 @@ class ApiCommandTest extends \Guzzle\Tests\GuzzleTestCase
         $this->assertEquals('FOO', $data->get('test_function'));
     }
 
-    public function testTypeValidationCanBeDisabled()
-    {
-        $i = Inspector::getInstance();
-        $i->setTypeValidation(false);
-
-        $command = $this->getTestCommand();
-        $command->validate(new Collection(array(
-            'data' => new \stdClass()
-        )), $i);
-    }
-
     public function testSkipsFurtherValidationIfNotSet()
     {
         $command = $this->getTestCommand();
-        $command->validate(new Collection());
-    }
-
-    /**
-     * @expectedException Guzzle\Service\Exception\ValidationException
-     * @expectedExceptionMessage Validation errors: [data] is required.
-     */
-    public function testValidatesRequiredFieldsAreSet()
-    {
-        $command = new ApiCommand(array(
-            'params' => array(
-                'data' => new ApiParam(array(
-                    'name'     => 'data',
-                    'required' => true
-                ))
-            )
-        ));
-
         $command->validate(new Collection());
     }
 
@@ -272,10 +236,10 @@ class ApiCommandTest extends \Guzzle\Tests\GuzzleTestCase
         $c->setName('foo')
             ->setConcreteClass('Baz')
             ->setDeprecated(false)
-            ->setDoc('doc')
-            ->setDocUrl('http://www.foo.com')
+            ->setDescription('doc')
+            ->setDescriptionUrl('http://www.foo.com')
             ->setMethod('PUT')
-            ->setResultDoc('oh')
+            ->setResultDescription('oh')
             ->setResultType('string')
             ->setUri('/foo/bar')
             ->addParam(new ApiParam(array(
@@ -285,10 +249,10 @@ class ApiCommandTest extends \Guzzle\Tests\GuzzleTestCase
         $this->assertEquals('foo', $c->getName());
         $this->assertEquals('Baz', $c->getConcreteClass());
         $this->assertEquals(false, $c->isDeprecated());
-        $this->assertEquals('doc', $c->getDoc());
-        $this->assertEquals('http://www.foo.com', $c->getDocUrl());
+        $this->assertEquals('doc', $c->getDescription());
+        $this->assertEquals('http://www.foo.com', $c->getDescriptionUrl());
         $this->assertEquals('PUT', $c->getMethod());
-        $this->assertEquals('oh', $c->getResultDoc());
+        $this->assertEquals('oh', $c->getResultDescription());
         $this->assertEquals('string', $c->getResultType());
         $this->assertEquals('/foo/bar', $c->getUri());
         $this->assertEquals(array('test'), $c->getParamNames());
@@ -309,30 +273,26 @@ class ApiCommandTest extends \Guzzle\Tests\GuzzleTestCase
             'params' => array(
                 'foo' => new ApiParam(array(
                     'name'      => 'foo',
-                    'type'      => 'array',
+                    'type'      => 'object',
                     'location'  => 'query',
                     'required'  => true,
-                    'structure' => array(
-                        array(
-                            'name'      => 'baz',
-                            'type'      => 'array',
-                            'required'  => true,
-                            'structure' => array(
-                                array(
-                                    'name'    => 'bam',
-                                    'type'    => 'bool',
+                    'properties' => array(
+                        'baz' => array(
+                            'type'       => 'object',
+                            'required'   => true,
+                            'properties' => array(
+                                'bam' => array(
+                                    'type'    => 'boolean',
                                     'default' => true
                                 ),
-                                array(
-                                    'name'     => 'boo',
-                                    'type'     => 'string',
-                                    'filters'  => 'strtoupper',
-                                    'defaut'   => 'mesa'
+                                'boo' => array(
+                                    'type'    => 'string',
+                                    'filters' => 'strtoupper',
+                                    'default' => 'mesa'
                                 )
                             )
                         ),
-                        array(
-                            'name'    => 'bar',
+                        'bar' => array(
                             'default' => '123'
                         )
                     )
@@ -340,12 +300,13 @@ class ApiCommandTest extends \Guzzle\Tests\GuzzleTestCase
             )
         ));
 
-        $input = new Collection(array());
+        $input = new Collection();
         $command->validate($input);
         $this->assertEquals(array(
             'foo' => array(
                 'baz' => array(
-                    'bam' => true
+                    'bam' => true,
+                    'boo' => 'MESA'
                 ),
                 'bar' => '123'
             )
@@ -358,6 +319,27 @@ class ApiCommandTest extends \Guzzle\Tests\GuzzleTestCase
         $this->assertEquals('foo', $command->getParam('foo')->getName());
     }
 
+    public function testContainsApiErrorInformation()
+    {
+        $command = $this->getApiCommand();
+        $this->assertEquals(1, count($command->getErrors()));
+        $arr = $command->toArray();
+        $this->assertEquals(1, count($arr['errors']));
+        $command->addError(400, 'Foo', 'Baz\\Bar');
+        $this->assertEquals(2, count($command->getErrors()));
+    }
+
+    public function testBuildsApiParamsLazily()
+    {
+        $command = $this->getApiCommand();
+        $this->assertTrue($command->hasParam('test'));
+        $params = $this->readAttribute($command, 'params');
+        $this->assertInternalType('array', $params['test']);
+        $this->assertInstanceOf('Guzzle\Service\Description\ApiParam', $command->getParam('test'));
+        $params = $this->readAttribute($command, 'params');
+        $this->assertInstanceOf('Guzzle\Service\Description\ApiParam', $params['test']);
+    }
+
     /**
      * @return ApiCommand
      */
@@ -368,28 +350,33 @@ class ApiCommandTest extends \Guzzle\Tests\GuzzleTestCase
             'class' => get_class($this),
             'params' => array(
                 'test' => array(
-                    'type' => 'type:object'
+                    'type' => 'object'
                 ),
                 'bool_1' => array(
                     'default' => true,
                     'type'    => 'boolean'
                 ),
                 'bool_2' => array('default' => false),
-                'float' => array('type' => 'float'),
+                'float' => array('type' => 'numeric'),
                 'int' => array('type' => 'integer'),
-                'date' => array('type' => 'date'),
-                'timestamp' => array('type' => 'time'),
+                'date' => array('type' => 'string'),
+                'timestamp' => array('type' => 'string'),
                 'string' => array('type' => 'string'),
                 'username' => array(
+                    'type'     => 'string',
                     'required' => true,
-                    'filters' => 'strtolower'
-                ),
-                'dynamic' => array(
-                    'default' => '{username}_{ string }_{ does_not_exist }'
+                    'filters'  => 'strtolower'
                 ),
                 'test_function' => array(
                     'type'    => 'string',
                     'filters' => __CLASS__ . '::strtoupper'
+                )
+            ),
+            'errors' => array(
+                array(
+                    'code'   => 503,
+                    'reason' => 'InsufficientCapacity',
+                    'class'  => 'Guzzle\\Exception\\RuntimeException'
                 )
             )
         ));

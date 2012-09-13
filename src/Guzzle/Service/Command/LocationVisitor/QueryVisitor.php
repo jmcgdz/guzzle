@@ -14,8 +14,11 @@ class QueryVisitor extends AbstractVisitor
     /**
      * {@inheritdoc}
      */
-    public function visit(CommandInterface $command, RequestInterface $request, $key, $value, ApiParam $param = null)
+    public function visit(ApiParam $param, RequestInterface $request, $value)
     {
-        $request->getQuery()->set($key, is_array($value) ? $this->resolveRecursively($value, $param) : $value);
+        $request->getQuery()->set(
+            $param->getLocationKey() ?: $param->getName(),
+            $param && is_array($value) ? $this->resolveRecursively($value, $param) : $value
+        );
     }
 }

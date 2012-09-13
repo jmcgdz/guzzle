@@ -11,6 +11,7 @@ abstract class AbstractVisitorTestCase extends \Guzzle\Tests\GuzzleTestCase
 {
     protected $command;
     protected $request;
+    protected $param;
 
     public function setUp()
     {
@@ -23,17 +24,17 @@ abstract class AbstractVisitorTestCase extends \Guzzle\Tests\GuzzleTestCase
         return new ApiCommand(array(
             'params' => array(
                 'foo' => new ApiParam(array(
-                    'type'         => 'array',
+                    'type'         => 'object',
                     'location'     => $location,
                     'location_key' => 'Foo',
                     'required'     => true,
-                    'structure'    => array(
+                    'properties'   => array(
                         'test' => array(
-                            'type'      => 'array',
+                            'type'      => 'object',
                             'required'  => true,
-                            'structure' => array(
+                            'properties' => array(
                                 'baz' => array(
-                                    'type'    => 'bool',
+                                    'type'    => 'boolean',
                                     'default' => true
                                 ),
                                 // Add a nested parameter that uses a different location_key than the input key

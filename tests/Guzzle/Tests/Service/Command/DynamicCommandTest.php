@@ -11,6 +11,9 @@ use Guzzle\Service\Description\ApiCommand;
 use Guzzle\Service\Description\ServiceDescription;
 use Guzzle\Service\Command\LocationVisitor\HeaderVisitor;
 
+/**
+ * @covers Guzzle\Service\Command\DynamicCommand
+ */
 class DynamicCommandTest extends \Guzzle\Tests\GuzzleTestCase
 {
     /**
@@ -30,51 +33,45 @@ class DynamicCommandTest extends \Guzzle\Tests\GuzzleTestCase
     {
         $this->service = new ServiceDescription(array(
             'test_command' => new ApiCommand(array(
-                'doc' => 'documentationForCommand',
-                'method' => 'HEAD',
-                'uri'    => '{/key}',
-                'params' => array(
+                'description' => 'documentationForCommand',
+                'method'      => 'HEAD',
+                'uri'         => '{/key}',
+                'params'      => array(
                     'bucket' => array(
-                        'required' => true,
-                        'append' => '.'
+                        'required' => true
                     ),
                     'key' => array(
-                        'prepend' => 'hi_'
+                        'location' => 'uri'
                     ),
                     'acl' => array(
                         'location' => 'query'
                     ),
                     'meta' => array(
-                        'location' => 'header:X-Amz-Meta',
-                        'append' => ':meta'
+                        'location' => array('name' => 'header', 'key' => 'X-Amz-Meta')
                     )
                 )
             )),
             'body' => new ApiCommand(array(
-                'doc' => 'doc',
-                'method' => 'PUT',
-                'params' => array(
+                'description' => 'doc',
+                'method'      => 'PUT',
+                'params'      => array(
                     'b' => array(
                         'required' => true,
-                        'prepend' => 'begin_body::',
-                        'append' => '::end_body',
                         'location' => 'body'
                     ),
                     'q' => array(
-                        'location' => 'query:test'
+                        'location'     => 'query',
+                        'location_key' => 'test'
                     ),
                     'h' => array(
-                        'location' => 'header:X-Custom'
+                        'location'     => 'header',
+                        'location_key' => 'X-Custom'
                     ),
                     'i' => array(
-                        'static' => 'test',
+                        'static'   => 'test',
                         'location' => 'query'
                     ),
-                    // Data locations means the argument is just a placeholder for data
-                    // that can be referenced by other arguments
-                    'data' => array(
-                        'location' => 'data'
-                    )
+                    'data' => array()
                 )
             )),
             'concrete' => new ApiCommand(array(
@@ -86,33 +83,6 @@ class DynamicCommandTest extends \Guzzle\Tests\GuzzleTestCase
     }
 
     /**
-     * @covers Guzzle\Service\Command\DynamicCommand
-     */
-    public function testBuildsUsingPathParametersAndAppendSlashPrepend()
-    {
-        $client = new Client('http://www.example.com/');
-        $client->setDescription($this->service);
-
-        $command = $this->factory->factory('test_command', array(
-            'bucket' => 'test',
-            'key' => 'key'
-        ));
-        $request = $command->setClient($client)->prepare();
-
-        // Ensure that the path values were injected into the path and base_url
-        $this->assertEquals('/hi_key', $request->getPath());
-        $this->assertEquals('www.example.com', $request->getHost());
-
-        // Check the complete request
-        $this->assertEquals(
-            "HEAD /hi_key HTTP/1.1\r\n" .
-            "Host: www.example.com\r\n" .
-            "User-Agent: " . Utils::getDefaultUserAgent() . "\r\n" .
-            "\r\n", (string) $request);
-    }
-
-    /**
-     * @covers Guzzle\Service\Command\DynamicCommand
      * @expectedException Guzzle\Service\Exception\ValidationException
      */
     public function testValidatesArgs()
@@ -123,9 +93,6 @@ class DynamicCommandTest extends \Guzzle\Tests\GuzzleTestCase
         $client->execute($command);
     }
 
-    /**
-     * @covers Guzzle\Service\Command\DynamicCommand
-     */
     public function testUsesDifferentLocations()
     {
         $client = new Client('http://www.tazmania.com/');
@@ -142,10 +109,10 @@ class DynamicCommandTest extends \Guzzle\Tests\GuzzleTestCase
             "Host: www.tazmania.com\r\n" .
             "User-Agent: " . Utils::getDefaultUserAgent() . "\r\n" .
             "Expect: 100-Continue\r\n" .
-            "Content-Length: 29\r\n" .
+            "Content-Length: 7\r\n" .
             "X-Custom: haha\r\n" .
             "\r\n" .
-            "begin_body::my-data::end_body", (string) $request);
+            "my-data", (string) $request);
 
         unset($command);
         unset($request);
@@ -164,24 +131,18 @@ class DynamicCommandTest extends \Guzzle\Tests\GuzzleTestCase
             "Host: www.tazmania.com\r\n" .
             "User-Agent: " . Utils::getDefaultUserAgent() . "\r\n" .
             "Expect: 100-Continue\r\n" .
-            "Content-Length: 29\r\n" .
+            "Content-Length: 7\r\n" .
             "X-Custom: haha\r\n" .
             "\r\n" .
-            "begin_body::my-data::end_body", (string) $request);
+            "my-data", (string) $request);
     }
 
-    /**
-     * @covers Guzzle\Service\Command\DynamicCommand::build
-     */
     public function testBuildsConcreteCommands()
     {
         $c = $this->factory->factory('concrete');
         $this->assertEquals('Guzzle\\Tests\\Service\\Mock\\Command\\MockCommand', get_class($c));
     }
 
-    /**
-     * @covers Guzzle\Service\Command\DynamicCommand::build
-     */
     public function testUsesAbsolutePaths()
     {
         $service = new ServiceDescription(array(
@@ -198,9 +159,6 @@ class DynamicCommandTest extends \Guzzle\Tests\GuzzleTestCase
         $this->assertEquals('/test', $request->getPath());
     }
 
-    /**
-     * @covers Guzzle\Service\Command\DynamicCommand::build
-     */
     public function testUsesRelativePaths()
     {
         $service = new ServiceDescription(array(
@@ -217,9 +175,28 @@ class DynamicCommandTest extends \Guzzle\Tests\GuzzleTestCase
         $this->assertEquals('/api/v2/test/abc', $request->getPath());
     }
 
-    /**
-     * @covers Guzzle\Service\Command\DynamicCommand::build
-     */
+    public function testAddsToUriTemplate()
+    {
+        $service = new ServiceDescription(array(
+            'test' => new ApiCommand(array(
+                'method' => 'GET',
+                'uri'    => '/test/abc{/foo}',
+                'params' => array(
+                    'foo' => array(
+                        'location' => 'uri'
+                    )
+                )
+            ))
+        ));
+
+        $client = new Client('http://foo.com');
+        $client->setDescription($service);
+        $command = $client->getCommand('test');
+        $command->set('foo', 'Baz');
+        $request = $command->prepare();
+        $this->assertEquals('/test/abc/Baz', $request->getPath());
+    }
+
     public function testAllowsPostFieldsAndFiles()
     {
         $service = new ServiceDescription(array(
@@ -231,7 +208,8 @@ class DynamicCommandTest extends \Guzzle\Tests\GuzzleTestCase
                         'location' => 'post_field'
                     ),
                     'test_2' => array(
-                        'location' => 'post_field:foo'
+                        'location' => 'post_field',
+                        'location_key' => 'foo'
                     ),
                     'test_3' => array(
                         'location' => 'post_file'
@@ -260,9 +238,6 @@ class DynamicCommandTest extends \Guzzle\Tests\GuzzleTestCase
         $this->assertInternalType('array', $request->getPostFile('baz'));
     }
 
-    /**
-     * @covers Guzzle\Service\Command\DynamicCommand::addVisitor
-     */
     public function testAllowsCustomVisitor()
     {
         $service = new ServiceDescription(array(

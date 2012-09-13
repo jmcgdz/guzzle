@@ -15,12 +15,12 @@ class PostFileVisitor extends AbstractVisitor
     /**
      * {@inheritdoc}
      */
-    public function visit(CommandInterface $command, RequestInterface $request, $key, $value, ApiParam $param = null)
+    public function visit(ApiParam $param, RequestInterface $request, $value)
     {
         if ($value instanceof PostFileInterface) {
             $request->addPostFile($value);
         } else {
-            $request->addPostFile($key, $value);
+            $request->addPostFile($param->getLocationKey() ?: $param->getName(), $value);
         }
     }
 }

@@ -14,8 +14,11 @@ class PostFieldVisitor extends AbstractVisitor
     /**
      * {@inheritdoc}
      */
-    public function visit(CommandInterface $command, RequestInterface $request, $key, $value, ApiParam $param = null)
+    public function visit(ApiParam $param, RequestInterface $request, $value)
     {
-        $request->setPostField($key, is_array($value) ? $this->resolveRecursively($value, $param) : $value);
+        $request->setPostField(
+            $param->getLocationKey() ?: $param->getName(),
+            $param && is_array($value) ? $this->resolveRecursively($value, $param) : $value
+        );
     }
 }

@@ -2,85 +2,112 @@
 
 namespace Guzzle\Service\Description;
 
+use Guzzle\Common\Exception\InvalidArgumentException;
+
 /**
  * API parameter object used with service descriptions
  */
 class ApiParam
 {
     protected $name;
+    protected $description;
     protected $type;
-    protected $typeArgs;
     protected $required;
+    protected $enum;
+    protected $pattern;
+    protected $min;
+    protected $max;
     protected $default;
-    protected $doc;
-    protected $minLength;
-    protected $maxLength;
-    protected $location;
-    protected $locationKey;
     protected $static;
-    protected $prepend;
-    protected $append;
+    protected $instance_of;
     protected $filters;
-    protected $structure = array();
+    protected $location;
+    protected $location_key;
+    protected $location_args;
+    protected $extra;
+    protected $properties = array();
+    protected $additional_properties;
+    protected $items;
     protected $parent;
+    protected $processor;
 
     /**
-     * Create a new ApiParam using an associative array of data
+     * Create a new ApiParam using an associative array of data. The array can contain the following information:
+     * - name:          (string) Parameter name
+     * - type:          (string|array) Type of variable (string, number, integer, boolean, object, array, numeric,
+     *                  null, any). Types are using for validation and determining the structure of a parameter. You
+     *                  can use a union type by providing an array of simple types. If one of the union types matches
+     *                  the provided value, then the value is valid.
+     * - instance_of:   (string) When the type is an object, you can specify the class that the object must implement
+     * - required:      (bool) Whether or not the parameter is required
+     * - default:       (mixed) Default value to use if no value is supplied
+     * - static:        (mixed) Set a static value when the parameter must have a default value that cannot be changed
+     * - description:   (string) Documentation of the parameter
+     * - location:      (string) The location of a request used to apply a parameter. Custom locations can be registered
+     *                  with a command, but the defaults are uri, query, header, body, json, post_field, post_file.
+     * - location_key:  (string) Allows the customization of where in a location a parameter is applied (e.g. renaming)
+     * - location_args: (array) Additional location specific arguments when serializing on a message.
+     * - filters:       (array) Array of static method names to to run a parameter value through. Each value in the
+     *                  array must be a string containing the full class path to a static method or an array of complex
+     *                  filter information. You can specify static methods of classes using the full namespace class
+     *                  name followed by '::' (e.g. Foo\Bar::baz()). Some filters require arguments in order to properly
+     *                  filter a value. For complex filters, use a hash containing a 'method' key pointing to a static
+     *                  method, and an 'args' key containing an array of positional arguments to pass to the method.
+     *                  Arguments can contain keywords that are replaced when filtering a value: '@value' is replaced
+     *                  with the value being validated, '@api' is replaced with the ApiParam object.
+     * - properties:    When the type is an object, you can specify nested parameters
+     * - additional_properties: (array) This attribute defines a schema for all properties that are not explicitly
+     *                  defined in an object type definition. If specified, the value MUST be a schema or a boolean. If
+     *                  false is provided, no additional properties are allowed beyond the properties defined in the
+     *                  schema. The default value is an empty schema which allows any value for additional properties.
+     * - items:         This attribute defines the allowed items in an instance array, and MUST be a schema or an array
+     *                  of schemas. The default value is an empty schema which allows any value for items in the
+     *                  instance array.
+     *                  When this attribute value is a schema and the instance value is an array, then all the items
+     *                  in the array MUST be valid according to the schema.
+     * - pattern:       When the type is a string, you can specify the regex pattern that a value must match
+     * - enum:          When the type is a string, you can specify a list of acceptable values
+     * - min:           (int) Minimum length when dealing with a string, minimum elements in an array, or minimum number
+     * - max:           (int) Maximum length when dealing with a string, maximum elements in an array, or maximum number
+     * - extra:         (array) Any additional custom data to use when serializing, validating, etc
+     * - processor:     (ProcessorInterface) Custom parameter schema validator and processor
      *
      * @param array $data Array of data as seen in service descriptions
+     *
+     * @throws InvalidArgumentException
      */
-    public function __construct(array $data)
+    public function __construct(array $data = array())
     {
-        $this->name = isset($data['name']) ? $data['name'] : null;
-        $this->required = array_key_exists('required', $data) ? $data['required'] : false;
-        $this->default = isset($data['default']) ? $data['default'] : null;
-        $this->doc = isset($data['doc']) ? $data['doc'] : null;
-        $this->static = isset($data['static']) ? $data['static'] : null;
-        $this->prepend = isset($data['prepend']) ? $data['prepend'] : null;
-        $this->append = isset($data['append']) ? $data['append'] : null;
-        $this->minLength = isset($data['min_length']) ? $data['min_length'] : null;
-        $this->maxLength = isset($data['max_length']) ? $data['max_length'] : null;
-        $this->filters = isset($data['filters']) ? (array) $data['filters'] : array();
-
-        if (isset($data['type'])) {
-            if (strpos($data['type'], ':')) {
-                list($this->type, $data['type_args']) = explode(':', $data['type'], 2);
-            } else {
-                $this->type = $data['type'];
-            }
+        foreach ($data as $key => $value) {
+            $this->{$key} = $value;
         }
 
-        $this->typeArgs = isset($data['type_args']) ? (array) $data['type_args'] : null;
+        $this->required = $this->required ? true : false;
+        $this->extra = (array) $this->extra;
 
-        if (isset($data['location'])) {
-            if (strpos($data['location'], ':')) {
-                list($this->location, $this->locationKey) = explode(':', $data['location'], 2);
-            } else {
-                $this->location = $data['location'];
-            }
+        if ($this->filters) {
+            $this->setFilters((array) $this->filters);
         }
 
-        if (isset($data['location_key'])) {
-            $this->locationKey = $data['location_key'];
-        }
-
-        // Use the name of the parameter as the location key by default
-        if (!$this->locationKey) {
-            $this->locationKey = $this->name;
-        }
-
-        $this->parent = isset($data['parent']) ? $data['parent'] : null;
-
-        // Create nested structures recursively
-        if (isset($data['structure'])) {
-            foreach ($data['structure'] as $name => $structure) {
-                // Allow the name to be set in the key or in the sub params
-                if (empty($structure['name'])) {
-                    $structure['name'] = $name;
+        if ($this->type == 'object') {
+            if ($this->properties) {
+                $this->properties = array();
+                foreach ($data['properties'] as $name => $property) {
+                    $property['name'] = $name;
+                    $this->addProperty(new static($property));
                 }
-                $structure['parent'] = $this;
-                $this->addStructure(new static($structure));
             }
+            if ($this->additional_properties && is_array($this->additional_properties)) {
+                $this->setAdditionalProperties(new static($this->additional_properties));
+            } elseif ($this->additional_properties === null) {
+                $this->additional_properties = true;
+            }
+        } elseif ($this->type == 'array' && $this->items) {
+            $this->setItems(new static($this->items));
+        }
+
+        if (!$this->processor) {
+            $this->processor = DefaultProcessor::getInstance();
         }
     }
 
@@ -91,28 +118,36 @@ class ApiParam
      */
     public function toArray()
     {
-        $structure = array();
-        foreach ($this->structure as $name => $struct) {
-            $structure[$name] = $struct->toArray();
+        $result = array();
+        foreach (array(
+            'name', 'required', 'description', 'type', 'location', 'location_key', 'location_args',
+             'filters', 'enum', 'pattern', 'min', 'max', 'instance_of', 'extra'
+        ) as $c) {
+            if ($value = $this->{$c}) {
+                $result[$c] = $value;
+            }
         }
 
-        return array(
-            'name'         => $this->name,
-            'type'         => $this->type,
-            'type_args'    => $this->typeArgs,
-            'required'     => $this->required,
-            'default'      => $this->default,
-            'doc'          => $this->doc,
-            'min_length'   => $this->minLength,
-            'max_length'   => $this->maxLength,
-            'location'     => $this->location,
-            'location_key' => $this->locationKey,
-            'static'       => $this->static,
-            'prepend'      => $this->prepend,
-            'append'       => $this->append,
-            'filters'      => $this->filters,
-            'structure'    => $structure
-        );
+        foreach (array('default', 'static', 'additional_properties', 'min', 'max') as $notNull) {
+            $value = $this->{$notNull};
+            if ($value !== null) {
+                $result[$notNull] = $value;
+            }
+        }
+
+        if ($this->type) {
+            $result['type'] = $this->type;
+            if ($this->type == 'array' && $this->items) {
+                $result['items'] = $this->items->toArray();
+            } elseif ($this->type == 'object' && $this->properties) {
+                $result['properties'] = array();
+                foreach ($this->properties as $name => $property) {
+                    $result['properties'][$name] = $property->toArray();
+                }
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -125,13 +160,27 @@ class ApiParam
     public function getValue($value)
     {
         return $this->static !== null
-            || ($this->default !== null && !$value && ($this->type != 'bool' || $value !== false))
+            || ($this->default !== null && !$value && ($this->type != 'boolean' || $value !== false))
             ? ($this->static ?: $this->default)
             : $value;
     }
 
     /**
-     * Filter a value
+     * Validate a value against the acceptable types, regular expressions, minimum, maximums, instance_of, enums, etc
+     * Add default and static values to the passed in variable.
+     * If the validation completes successfully, run the parameter through its filters.
+     *
+     * @param mixed  $value Value to validate and process. The value may change during this process.
+     *
+     * @return bool|array Returns true if valid, or an array of error messages if invalid
+     */
+    public function process(&$value)
+    {
+        return $this->processor->process($this, $value);
+    }
+
+    /**
+     * Run a value through the filters associated with the parameter
      *
      * @param mixed $value Value to filter
      *
@@ -139,13 +188,15 @@ class ApiParam
      */
     public function filter($value)
     {
-        if (!empty($this->filters)) {
+        if ($this->filters) {
             foreach ($this->filters as $filter) {
                 if (is_array($filter)) {
                     // Convert complex filters that hold value place holders
                     foreach ($filter['args'] as &$data) {
                         if ($data == '@value') {
                             $data = $value;
+                        } elseif ($data == '@api') {
+                            $data = $this;
                         }
                     }
                     $value = call_user_func_array($filter['method'], $filter['args']);
@@ -183,9 +234,9 @@ class ApiParam
     }
 
     /**
-     * Get the type
+     * Get the type(s) of the parameter
      *
-     * @return string
+     * @return string|array
      */
     public function getType()
     {
@@ -193,39 +244,15 @@ class ApiParam
     }
 
     /**
-     * Set the type
+     * Set the type(s) of the parameter
      *
-     * @param string $type Type of parameter
+     * @param string|array $type Type of parameter or array of simple types used in a union
      *
      * @return self
      */
     public function setType($type)
     {
         $this->type = $type;
-
-        return $this;
-    }
-
-    /**
-     * Get the arguments to pass to type constraint
-     *
-     * @return array|null
-     */
-    public function getTypeArgs()
-    {
-        return $this->typeArgs;
-    }
-
-    /**
-     * Set the arguments to pass to type constraint
-     *
-     * @param array $args Type arguments
-     *
-     * @return self
-     */
-    public function setTypeArgs(array $args)
-    {
-        $this->typeArgs = $args;
 
         return $this;
     }
@@ -249,7 +276,7 @@ class ApiParam
      */
     public function setRequired($isRequired)
     {
-        $this->required = $isRequired;
+        $this->required = (bool) $isRequired;
 
         return $this;
     }
@@ -279,73 +306,73 @@ class ApiParam
     }
 
     /**
-     * Get the docs for the parameter
+     * Get the description of the parameter
      *
      * @return string|null
      */
-    public function getDoc()
+    public function getDescription()
     {
-        return $this->doc;
+        return $this->description;
     }
 
     /**
-     * Set the docs for the parameter
+     * Set the description of the parameter
      *
-     * @param string $docs Documentation
+     * @param string $description Description
      *
      * @return self
      */
-    public function setDoc($docs)
+    public function setDescription($description)
     {
-        $this->doc = $docs;
+        $this->description = $description;
 
         return $this;
     }
 
     /**
-     * Get the minimum allowed length of the parameter
+     * Get the minimum allowed length/size of the parameter
      *
      * @return int|null
      */
-    public function getMinLength()
+    public function getMin()
     {
-        return $this->minLength;
+        return $this->min;
     }
 
     /**
-     * Set the minimum allowed length of the parameter
+     * Set the minimum allowed length/size of the parameter
      *
-     * @param int|null $minLength Minimum length of the parameter
+     * @param int|null $min Minimum length/size of the parameter
      *
      * @return self
      */
-    public function setMinLength($minLength)
+    public function setMin($min)
     {
-        $this->minLength = $minLength;
+        $this->min = $min;
 
         return $this;
     }
 
     /**
-     * Get the maximum allowed length of the parameter
+     * Get the maximum allowed length/size of the parameter
      *
      * @return int|null
      */
-    public function getMaxLength()
+    public function getMax()
     {
-        return $this->maxLength;
+        return $this->max;
     }
 
     /**
-     * Set the maximum allowed length of the parameter
+     * Set the maximum allowed length/size of the parameter
      *
-     * @param int|null $maxLength Maximum length of the parameter
+     * @param int|null $max Maximum allowed length/size
      *
      * @return self
      */
-    public function setMaxLength($maxLength)
+    public function setMax($max)
     {
-        $this->maxLength = $maxLength;
+        $this->max = $max;
 
         return $this;
     }
@@ -381,7 +408,7 @@ class ApiParam
      */
     public function getLocationKey()
     {
-        return $this->locationKey;
+        return $this->location_key;
     }
 
     /**
@@ -393,7 +420,62 @@ class ApiParam
      */
     public function setLocationKey($key)
     {
-        $this->locationKey = $key;
+        $this->location_key = $key;
+
+        return $this;
+    }
+
+    /**
+     * Get the location arguments of the parameter
+     *
+     * @return array|null
+     */
+    public function getLocationArgs()
+    {
+        return $this->location_args;
+    }
+
+    /**
+     * Set the location arguments of the parameter
+     *
+     * @param array|null $args Location arguments
+     *
+     * @return self
+     */
+    public function setLocationArgs($args)
+    {
+        $this->location_args = $args;
+
+        return $this;
+    }
+
+    /**
+     * Get all of the extra data properties of the parameter or a specific property by name
+     *
+     * @param string|null $name Specify a particular property name to retrieve
+     *
+     * @return array|mixed|null
+     */
+    public function getExtra($name = null)
+    {
+        return $name ? (isset($this->extra[$name]) ? $this->extra[$name] : null) : $this->extra;
+    }
+
+    /**
+     * Set the extra data properties of the parameter or set a specific extra property
+     *
+     * @param string|array|null $nameOrData The name of a specific extra to set or an array of extras to set
+     * @param mixed|null        $data       When setting a specific extra property, specify the data to set for it
+     *
+     * @return self
+     */
+    public function setExtra($nameOrData, $data = null)
+    {
+        if (is_array($nameOrData)) {
+            $this->extra = $nameOrData;
+        } else {
+            $this->extra[$nameOrData] = $data;
+        }
 
         return $this;
     }
@@ -423,61 +505,13 @@ class ApiParam
     }
 
     /**
-     * Get the string to prepend to values
-     *
-     * @return string
-     */
-    public function getPrepend()
-    {
-        return $this->prepend;
-    }
-
-    /**
-     * Set the string to prepend to values
-     *
-     * @param string|null $prepend String to prepend to values
-     *
-     * @return self
-     */
-    public function setPrepend($prepend)
-    {
-        $this->prepend = $prepend;
-
-        return $this;
-    }
-
-    /**
-     * Get the string to append to values
-     *
-     * @return string
-     */
-    public function getAppend()
-    {
-        return $this->append;
-    }
-
-    /**
-     * Set the string to append to values
-     *
-     * @param string|null $append String to append to values
-     *
-     * @return self
-     */
-    public function setAppend($append)
-    {
-        $this->append = $append;
-
-        return $this;
-    }
-
-    /**
      * Get an array of filters used by the parameter
      *
      * @return array
      */
     public function getFilters()
     {
-        return $this->filters;
+        return $this->filters ?: array();
     }
 
     /**
@@ -489,7 +523,10 @@ class ApiParam
      */
     public function setFilters(array $filters)
     {
-        $this->filters = $filters;
+        $this->filters = array();
+        foreach ($filters as $filter) {
+            $this->addFilter($filter);
+        }
 
         return $this;
     }
@@ -497,59 +534,23 @@ class ApiParam
     /**
      * Add a filter to the parameter
      *
-     * @param string $filter Method to filter the value through
+     * @param string|array $filter Method to filter the value through
      *
      * @return self
+     * @throws InvalidArgumentException
      */
     public function addFilter($filter)
     {
-        $this->filters[] = $filter;
+        if (is_array($filter)) {
+            if (!isset($filter['method'])) {
+                throw new InvalidArgumentException('A [method] value must be specified for each complex filter');
+            }
+        }
 
-        return $this;
-    }
-
-    /**
-     * Get the structure of the parameter or a specific structure element
-     *
-     * @param string $paramName Specific parameter to retrieve
-     *
-     * @return array|ApiParam|null
-     */
-    public function getStructure($paramName = null)
-    {
-        return $paramName
-            ? (isset($this->structure[$paramName]) ? $this->structure[$paramName] : null)
-            : $this->structure;
-    }
-
-    /**
-     * Add an element to the structure of the parameter
-     *
-     * @param ApiParam $param Parameter to add
-     *
-     * @return self
-     */
-    public function addStructure(ApiParam $param)
-    {
-        $this->structure[$param->getName()] = $param;
-        $param->setParent($this);
-
-        return $this;
-    }
-
-    /**
-     * Remove the structure of the parameter or a specific element from the structure
-     *
-     * @param string $paramName Specific parameter to remove by name
-     *
-     * @return self
-     */
-    public function removeStructure($paramName = null)
-    {
-        if ($paramName) {
-            unset($this->structure[$paramName]);
+        if (!$this->filters) {
+            $this->filters = array($filter);
         } else {
-            $this->structure = array();
+            $this->filters[] = $filter;
         }
 
         return $this;
@@ -575,6 +576,180 @@ class ApiParam
     public function setParent($parent)
     {
         $this->parent = $parent;
+
+        return $this;
+    }
+
+    /**
+     * Get the properties of the parameter
+     *
+     * @return array
+     */
+    public function getProperties()
+    {
+        return $this->properties;
+    }
+
+    /**
+     * Get a specific property from the parameter
+     *
+     * @param string $name Name of the property to retrieve
+     *
+     * @return null|ApiParam
+     */
+    public function getProperty($name)
+    {
+        return isset($this->properties[$name]) ? $this->properties[$name] : null;
+    }
+
+    /**
+     * Remove a property from the parameter
+     *
+     * @param string $name Name of the property to remove
+     *
+     * @return self
+     */
+    public function removeProperty($name)
+    {
+        unset($this->properties[$name]);
+
+        return $this;
+    }
+
+    /**
+     * Add a property to the parameter
+     *
+     * @param ApiParam $property Properties to set
+     *
+     * @return self
+     */
+    public function addProperty(ApiParam $property)
+    {
+        $this->properties[$property->getName()] = $property;
+        $property->setParent($this);
+
+        return $this;
+    }
+
+    /**
+     * Get the additionalProperties value of the parameter
+     *
+     * @return bool|ApiParam|null
+     */
+    public function getAdditionalProperties()
+    {
+        return $this->additional_properties;
+    }
+
+    /**
+     * Set the additionalProperties value of the parameter
+     *
+     * @param bool|ApiParam|null $additional Boolean to allow any, an ApiParam to specify a schema, or false to disallow
+     *
+     * @return self
+     */
+    public function setAdditionalProperties($additional)
+    {
+        $this->additional_properties = $additional;
+        if ($additional instanceof self) {
+            $additional->setParent($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Set the items data of the parameter
+     *
+     * @param ApiParam|null $items Items to set
+     */
+    public function setItems(ApiParam $items = null)
+    {
+        if ($this->items = $items) {
+            $this->items->setParent($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * Get the item data of the parameter
+     *
+     * @return ApiParam|null
+     */
+    public function getItems()
+    {
+        return $this->items;
+    }
+
+    /**
+     * Get the class that the parameter must implement
+     *
+     * @return null|string
+     */
+    public function getInstanceOf()
+    {
+        return $this->instance_of;
+    }
+
+    /**
+     * Set the class that the parameter must be an instance of
+     *
+     * @param string|null $instanceOf Class or interface name
+     *
+     * @return self
+     */
+    public function setInstanceOf($instanceOf)
+    {
+        $this->instance_of = $instanceOf;
+
+        return $this;
+    }
+
+    /**
+     * Get the enum of strings that are valid for the parameter
+     *
+     * @return array|null
+     */
+    public function getEnum()
+    {
+        return $this->enum;
+    }
+
+    /**
+     * Set the enum of strings that are valid for the parameter
+     *
+     * @param array|null $enum Array of strings or null
+     *
+     * @return self
+     */
+    public function setEnum(array $enum = null)
+    {
+        $this->enum = $enum;
+
+        return $this;
+    }
+
+    /**
+     * Get the regex pattern that must match a value when the value is a string
+     *
+     * @return string
+     */
+    public function getPattern()
+    {
+        return $this->pattern;
+    }
+
+    /**
+     * Set the regex pattern that must match a value when the value is a string
+     *
+     * @param string $pattern Regex pattern
+     *
+     * @return self
+     */
+    public function setPattern($pattern)
+    {
+        $this->pattern = $pattern;
 
         return $this;
     }

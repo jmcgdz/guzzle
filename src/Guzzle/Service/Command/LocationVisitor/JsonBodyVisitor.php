@@ -3,8 +3,8 @@
 namespace Guzzle\Service\Command\LocationVisitor;
 
 use Guzzle\Http\Message\RequestInterface;
-use Guzzle\Service\Description\ApiParam;
 use Guzzle\Service\Command\CommandInterface;
+use Guzzle\Service\Description\ApiParam;
 
 /**
  * Visitor used to apply a parameter to an array that will be serialized as a top level key-value pair in a JSON body
@@ -47,21 +47,13 @@ class JsonBodyVisitor extends AbstractVisitor
     /**
      * {@inheritdoc}
      */
-    public function visit(CommandInterface $command, RequestInterface $request, $key, $value, ApiParam $param = null)
+    public function visit(ApiParam $param, RequestInterface $request, $value)
     {
-        if (is_array($value)) {
-            $value = $this->resolveRecursively($value, $param);
-        }
-
-        if (isset($this->data[$command])) {
-            $json = $this->data[$command];
-            $json[$key] = $value;
-            $this->data[$command] = $json;
-        } elseif ($param) {
-            $this->data[$command] = array($key => $value);
-        } else {
-            $this->data[$command] = array($key => $value);
-        }
+        $json = isset($this->data[$request]) ? $this->data[$request] : array();
+        $json[$param->getLocationKey() ?: $param->getName()] = $param && is_array($value)
+            ? $this->resolveRecursively($value, $param)
+            : $value;
+        $this->data[$request] = $json;
     }
 
     /**
@@ -69,9 +61,9 @@ class JsonBodyVisitor extends AbstractVisitor
      */
     public function after(CommandInterface $command, RequestInterface $request)
     {
-        if (isset($this->data[$command])) {
-            $json = $this->data[$command];
-            unset($this->data[$command]);
+        if (isset($this->data[$request])) {
+            $json = $this->data[$request];
+            unset($this->data[$request]);
             $request->setBody(json_encode($json))->removeHeader('Expect');
             if ($this->jsonContentType) {
                 $request->setHeader('Content-Type', $this->jsonContentType);

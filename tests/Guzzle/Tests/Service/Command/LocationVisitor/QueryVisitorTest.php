@@ -13,7 +13,8 @@ class QueryVisitorTest extends AbstractVisitorTestCase
     public function testVisitsLocation()
     {
         $visitor = new Visitor();
-        $visitor->visit($this->command, $this->request, 'test', '123');
+        $param = $this->getNestedCommand('query')->getParam('foo')->setLocationKey('test');
+        $visitor->visit($param, $this->request, '123');
         $this->assertEquals('123', $this->request->getQuery()->get('test'));
     }
 
@@ -27,7 +28,8 @@ class QueryVisitorTest extends AbstractVisitorTestCase
         $data = new Collection();
         $command->validate($data);
         $visitor = new Visitor();
-        $visitor->visit($this->command, $this->request, 'Foo', $data['foo'], $command->getParam('foo'));
+        $param = $this->getNestedCommand('query')->getParam('foo');
+        $visitor->visit($param->setLocationKey('Foo'), $this->request, $data['foo']);
         $visitor->after($this->command, $this->request);
         $this->assertEquals(
             '?Foo[test][baz]=1&Foo[test][Jenga_Yall!]=HELLO&Foo[bar]=123',

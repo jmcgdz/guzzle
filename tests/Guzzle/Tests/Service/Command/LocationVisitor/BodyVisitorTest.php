@@ -12,7 +12,8 @@ class BodyVisitorTest extends AbstractVisitorTestCase
     public function testVisitsLocation()
     {
         $visitor = new Visitor();
-        $visitor->visit($this->command, $this->request, null, '123');
+        $param = $this->getNestedCommand('body')->getParam('foo')->setLocationKey('Foo');
+        $visitor->visit($param, $this->request, '123');
         $this->assertEquals('123', (string) $this->request->getBody());
     }
 }
